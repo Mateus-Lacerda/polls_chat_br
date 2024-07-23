@@ -1,0 +1,13 @@
+# gitignore
+# cache folder
+cache/
+# .env file
+.env
+# csv files
+*.csv
+# log files
+*.log
+# pdf files
+*.pdf
+# txt files
+*.txt
