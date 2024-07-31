@@ -11,3 +11,5 @@ cache/
 *.pdf
 # txt files
 *.txt
+# Venv folder
+venv/

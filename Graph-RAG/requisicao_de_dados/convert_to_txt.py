@@ -3,7 +3,8 @@
 import PyPDF2
 import os
 
-pdffile = open("/home/mateus-lacerda/Área de trabalho/Estudo/VSCodeProjects/AEED2/Graph-RAG/pdfs/RO/nova-mamore/proposta-de-dr-alexandre-nogueira.pdf", "rb")
+pdffile = open("/PROJETOS VSCODE/AED2/projeto_final/polls_chat_br/Graph-RAG/requisicao_de_dados/pdfs/RO/porto-velho/proposta-de-coronel-ronaldo-flores.pdf", "rb")
+#("/home/mateus-lacerda/Área de trabalho/Estudo/VSCodeProjects/AEED2/Graph-RAG/pdfs/RO/nova-mamore/proposta-de-dr-alexandre-nogueira.pdf", "rb")
 
 pdfreader = PyPDF2.PdfReader(pdffile)
 

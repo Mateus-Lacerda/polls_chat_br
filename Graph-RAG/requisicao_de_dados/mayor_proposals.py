@@ -4,9 +4,12 @@ from pathlib import Path
 import random
 import os
 import time, datetime
+import sys
 
 import requests
-from slugify import slugify
+def slugify(text):
+    "Transforma um texto em um slug"
+    return text.lower().replace(" ", "-")
 
 """
 Esse script acessa a API do TSE e exporta um CSV com os links
@@ -34,14 +37,21 @@ def get_cities_info(file_name: str) -> dict:
     """Pega código e informações de municípios a partir do mapeamento
     da Base dos Dados"""
     if not os.path.exists(file_name):
-        raise ValueError(
-            f"O arquivo não existe: {file_name}.\n"
-            "Faça o download a partir do endereço: "
-            "https://basedosdados.org/dataset/br-basedosdados-diretorios-brasil#"
-            )
+        print("Procurando arquivo de mapeamento de municípios...")
+        try:
+            # try to find the file in the parent directory
+            file_name = f"../{file_name}"
+            if not os.path.exists(file_name):
+                raise FileNotFoundError
+        except FileNotFoundError:
+            raise ValueError(
+                f"O arquivo não existe: {file_name}.\n"
+                "Faça o download a partir do endereço: "
+                "https://basedosdados.org/dataset/br-basedosdados-diretorios-brasil#"
+                )
     cities = {}
     print(f"Lendo {file_name}...")
-    with open(file_name, "r") as f:
+    with open(file_name, "r",encoding="utf-8") as f:
         all_cities = csv.DictReader(f)
         for city in all_cities:
             cities[city["id_municipio_tse"]] = {
@@ -111,10 +121,16 @@ def download_proposals(file_name: str):
 
 def get_candidate(city, candidate_code):
     endpoint = f"{BASE_ENDPOINT}/candidatura/buscar/2020/{city}/{ELECTION_CODE}/candidato/{candidate_code}"
-    response = requests.get(endpoint, timeout=TIMEOUT)
-    if response:
-        return response.json()
-    return
+    try:
+        response = requests.get(endpoint, timeout=TIMEOUT)
+        response.raise_for_status()  # Verifica se a requisição foi bem-sucedida
+        if response.text:  # Verifica se a resposta não está vazia
+            return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao acessar a API: {e}")
+    except requests.exceptions.JSONDecodeError as e:
+        print(f"Erro ao decodificar JSON: {e}")
+    return None
 
 
 def fill_zeroes(code):
@@ -186,31 +202,33 @@ def crawl_proposals(
                 print(city_code, city)
                 wait_cooldown()
 
-                candidates_to_follow = (
-                    candidate for candidate in candidates["candidatos"] \
-                    if str(candidate["id"]) not in skip_proposals
-                )
-                for candidate in candidates_to_follow:
-                    candidate_details = get_candidate(
-                        city_code,
-                        candidate["id"]
-                        )
-                    wait_cooldown()
-                    url = get_proposal_url(candidate_details)
-                    spamwriter.writerow([
-                        city_code, city["city"], city["state"],
-                        candidate_details["id"],
-                        candidate_details["nomeUrna"],
-                        candidate_details["partido"]["sigla"],
-                        url
-                        ])
-
-                    if download_document:
-                        download_proposal(
-                            url, city["state"], city["city"],
-                            candidate_details["nomeUrna"]
+                if candidates:  # Verifica se a resposta de candidatos não é None
+                    candidates_to_follow = (
+                        candidate for candidate in candidates["candidatos"] \
+                        if str(candidate["id"]) not in skip_proposals
+                    )
+                    for candidate in candidates_to_follow:
+                        candidate_details = get_candidate(
+                            city_code,
+                            candidate["id"]
                             )
                         wait_cooldown()
+                        if candidate_details:  # Verifica se os detalhes do candidato não são None
+                            url = get_proposal_url(candidate_details)
+                            spamwriter.writerow([
+                                city_code, city["city"], city["state"],
+                                candidate_details["id"],
+                                candidate_details["nomeUrna"],
+                                candidate_details["partido"]["sigla"],
+                                url
+                                ])
+
+                            if download_document and url:
+                                download_proposal(
+                                    url, city["state"], city["city"],
+                                    candidate_details["nomeUrna"]
+                                    )
+                                wait_cooldown()
 
 
 
